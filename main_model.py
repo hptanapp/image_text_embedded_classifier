@@ -19,7 +19,7 @@ import data_loader
 
 max_words = 10000
 epochs = 50
-batch_size = 32
+batch_size = 8
 
 height = 512
 width = 512
@@ -31,11 +31,13 @@ img_root_dir = r"D:\Projects\image_text_model\data\inputs\images"
 csv_infilepath = "D:/Projects/image_text_model/data/inputs/images/ocr.csv"
 with open(csv_infilepath) as f:
     lines = f.read().splitlines()
-custom_img_txt_generator_class = data_loader.custom_img_txt_generator(img_root_dir)
-num_samples = custom_img_txt_generator_class.get_num_samples(lines)
+lines = list.pop(lines)
+custom_img_txt_generator_class_train = data_loader.custom_img_txt_generator(img_root_dir)
+custom_img_txt_generator_class_test = data_loader.custom_img_txt_generator(img_root_dir)
+num_samples = custom_img_txt_generator_class_train.get_num_samples(lines)
 print ("total samples : " + str(num_samples))
 
-num_classes = 3
+num_classes = len(custom_img_txt_generator_class_train.get_total_classes(lines))
 
 # X_train_image = ...  #images training input
 # X_train_text = ... #text training input
@@ -64,7 +66,7 @@ branch_2 = GlobalAveragePooling2D()(branch_2)
 branch_2 = Dense(1024, activation='relu')(branch_2)
 
 # merge the text input branch and the image input branch and add another fully connected layer
-joint = concatenate([branch_1, branch_2])
+joint = concatenate([branch_2, branch_1])
 joint = Dense(512, activation='relu')(joint)
 joint = Dropout(0.5)(joint)
 predictions = Dense(num_classes, activation='sigmoid')(joint)
@@ -82,11 +84,14 @@ print(full_model.summary())
 #                          verbose=1, validation_split=0.2, shuffle=True)
 
 history = full_model.fit_generator(
-                        custom_img_txt_generator_class.image_text_generator(lines), 
+                        custom_img_txt_generator_class_train.image_text_generator(lines), 
                         epochs=epochs, 
                         steps_per_epoch=num_samples // batch_size,
+                        validation_data=custom_img_txt_generator_class_test.image_text_generator(lines),
+                        validation_steps=num_samples // batch_size,
                         verbose=1, 
-                        shuffle=True
+                        shuffle=True,
+                        use_multiprocessing=False
                         )
 
 history.save()
