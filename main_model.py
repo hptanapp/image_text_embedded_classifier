@@ -8,6 +8,7 @@ from keras.models import Model
 from keras.layers import Dense, Activation, Dropout, Flatten
 from keras.layers import GlobalMaxPooling1D, GlobalMaxPooling2D
 from tensorflow.keras import models
+from keras.callbacks import ModelCheckpoint
 # from tensorflow.keras import layers
 import tensorflow
 from keras_efficientnets import EfficientNetB0 # pip install keras-efficientnets
@@ -19,19 +20,21 @@ import data_loader
 
 max_words = 10000
 epochs = 50
-batch_size = 8
+batch_size = 4
 
 height = 512
 width = 512
 input_shape = (height, width, 3)
 
-
-#### dataloader
+## define
 img_root_dir = r"D:\Projects\image_text_model\data\inputs\images"
 csv_infilepath = "D:/Projects/image_text_model/data/inputs/images/ocr.csv"
+model_path = r"D:/Projects/image_text_model/models"
+
+#### dataloader
 with open(csv_infilepath) as f:
     lines = f.read().splitlines()
-lines = list.pop(lines)
+lines.pop(0)
 custom_img_txt_generator_class_train = data_loader.custom_img_txt_generator(img_root_dir)
 custom_img_txt_generator_class_test = data_loader.custom_img_txt_generator(img_root_dir)
 num_samples = custom_img_txt_generator_class_train.get_num_samples(lines)
@@ -83,6 +86,15 @@ print(full_model.summary())
 #                          epochs=epochs, batch_size=batch_size,
 #                          verbose=1, validation_split=0.2, shuffle=True)
 
+## checkpoints
+checkpoints_path = r"D:/Projects/image_text_model/models"
+checkpoints = ModelCheckpoint(checkpoints_path,
+                                monitor='val_loss',
+                                mode='min',
+                                save_best_only=True,
+                                verbose=1
+                                )
+
 history = full_model.fit_generator(
                         custom_img_txt_generator_class_train.image_text_generator(lines), 
                         epochs=epochs, 
@@ -91,7 +103,9 @@ history = full_model.fit_generator(
                         validation_steps=num_samples // batch_size,
                         verbose=1, 
                         shuffle=True,
-                        use_multiprocessing=False
+                        use_multiprocessing=False,
+                        callbacks=[checkpoints]
                         )
 
-history.save()
+final_model_path = os.path.join(model_path, "model_final.hdf5")
+full_model.save(final_model_path)
